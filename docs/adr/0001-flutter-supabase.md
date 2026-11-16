@@ -25,7 +25,7 @@ template เดิมเป็นเว็บแอป on-prem (React + Fastify 
    - migration ไป staging/production: **คนรัน `supabase db push` เอง** หลังรีวิว · Claude Code ถูก deny `supabase link/db push/functions deploy/secrets`
 
 ## ผลที่ตามมา
-- ไม่ใช้ .176/.177 · ไม่มี Docker Compose / pnpm / staging บน VM ในโรงงาน
+- ไม่ใช้ .176/.177 · ไม่มี pnpm / staging บน VM ในโรงงาน · `docker-compose.yml` มีไว้รันทั้งระบบในเครื่อง dev/demo เท่านั้น (ROOM-3) ไม่ใช่ช่องทาง deploy
 - ข้อมูลผู้ใช้อยู่บน cloud ของ Supabase → **ต้องตัดสิน region และ DPA (PDPA) ก่อนขึ้น production** (ADR 0002 ข้อ 1)
 - ถ้าวันหน้าต้องย้ายกลับ on-prem: Supabase self-host ได้ (Postgres มาตรฐาน + migration ชุดเดิม) แต่ต้องวางแผน auth/backup ใหม่
 - iOS เพิ่มทีหลังได้ด้วย `flutter create --platforms ios .` (ต้องมี Apple Developer account + macOS runner)

@@ -8,6 +8,7 @@
 |---|---|---|---|---|
 | ROOM-1 | bootstrap: Flutter + Supabase + CI (Playwright) | 🔄 รอรีวิว | | profiles + RLS + pgTAP · ไม่มี deploy · MANUAL_MERGE |
 | ROOM-2 | spec → SYSTEM_DESIGN + DESIGN + ADR + แตกงาน (rooms/bookings) | ⏭ ถัดไป | | ส่งแผนให้เจ้าของโปรเจคก่อน |
+| ROOM-3 | docker-compose ทั้งระบบ (dev/demo) | 🔄 รอรีวิว | | ต่อจาก ROOM-1 · MANUAL_MERGE |
 สัญลักษณ์: ✅ เสร็จ · 🔄 กำลังทำ · ⏭ ถัดไป · ⬜ ยังไม่เริ่ม · ⛔ ติด
 
 ## ตัดสินแล้ว (ล่าสุดก่อน)

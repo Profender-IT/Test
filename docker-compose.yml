@@ -1,0 +1,266 @@
+# Profender Room Booking — ทั้งระบบในไฟล์เดียว สำหรับเครื่อง dev / demo (ไม่ใช่ staging/production · ดู ADR 0001, DECISIONS 2026-11-16 ROOM-3)
+#
+#   bash scripts/dev/compose_env.sh     # ครั้งแรก: สร้าง .env (รหัสผ่าน DB, JWT secret, anon/service key) · .env ไม่ขึ้น git
+#   docker compose up -d --build        # db → auth → migrate (supabase/migrations + seed) → rest → web
+#   docker compose --profile studio up -d   # + Supabase Studio
+#
+#   แอป (Flutter web) + API     http://localhost:8000      (/auth/v1, /rest/v1 ผ่าน nginx ตัวเดียวกัน)
+#   Supabase Studio             http://localhost:3000      (profile studio)
+#   Postgres                    localhost:54332            (user postgres / POSTGRES_PASSWORD ใน .env)
+#
+#   ล้างทั้งหมด (ข้อมูลสังเคราะห์เท่านั้น): docker compose --profile studio down -v
+#
+# config ทั้งหมดอยู่ในไฟล์นี้ (configs: แบบ inline) · ค่าลับอยู่ใน .env เท่านั้น
+# ทุกพอร์ต bind 127.0.0.1 · gateway นี้ไม่ตรวจ apikey แบบ Kong จึงห้ามเปิดออก network
+# image ตรงกับที่ supabase CLI 3.1.0 ใช้ (CI ทดสอบกับชุดนี้)
+
+name: roombooking
+
+x-db-env: &db-env
+  POSTGRES_HOST: /var/run/postgresql
+  POSTGRES_PORT: 5432
+  POSTGRES_DB: postgres
+  POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?สร้าง .env ก่อนด้วย bash scripts/dev/compose_env.sh}"
+  JWT_SECRET: ${JWT_SECRET:?สร้าง .env ก่อน}
+  JWT_EXP: ${JWT_EXP:-3600}
+
+services:
+  db:
+    image: public.ecr.aws/supabase/postgres:17.11.0.018
+    restart: unless-stopped
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "log_min_messages=fatal"]
+    environment:
+      <<: *db-env
+      PGPORT: 5432
+      PGDATABASE: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    ports: ["127.0.0.1:54332:5432"]
+    volumes: [db-data:/var/lib/postgresql/data]
+    configs:
+      - source: db-roles
+        target: /docker-entrypoint-initdb.d/init-scripts/99-roles.sql
+      - source: db-jwt
+        target: /docker-entrypoint-initdb.d/init-scripts/99-jwt.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  auth:
+    image: public.ecr.aws/supabase/gotrue:v2.197.0
+    restart: unless-stopped
+    depends_on: { db: { condition: service_healthy } }
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${PUBLIC_URL:-http://localhost:8000}
+      GOTRUE_SITE_URL: ${PUBLIC_URL:-http://localhost:8000}
+      GOTRUE_URI_ALLOW_LIST: ""
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: ${JWT_EXP:-3600}
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"          # dev: ไม่ส่งอีเมลยืนยัน (เหมือน supabase start)
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  migrate:                    # รัน supabase/migrations ที่ยังไม่เคยรัน (ตารางเดียวกับ supabase CLI) + seed ครั้งแรก แล้วจบ
+    image: public.ecr.aws/supabase/postgres:17.11.0.018
+    depends_on:
+      db: { condition: service_healthy }
+      auth: { condition: service_healthy }      # migration อ้าง auth.users ที่ GoTrue สร้าง
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["./supabase:/supabase:ro"]
+    entrypoint: ["bash", "/run-migrations.sh"]
+    configs:
+      - source: run-migrations
+        target: /run-migrations.sh
+    restart: "no"
+
+  rest:
+    image: public.ecr.aws/supabase/postgrest:v16.5
+    restart: unless-stopped
+    depends_on: { migrate: { condition: service_completed_successfully } }
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXP:-3600}
+
+  web:                        # Flutter web build + nginx เป็น gateway (/auth/v1 → auth, /rest/v1 → rest, ที่เหลือ = แอป)
+    build:
+      context: ./app
+      args:
+        SUPABASE_URL: ${PUBLIC_URL:-http://localhost:8000}
+        SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY:?สร้าง .env ก่อน}   # anon key = public key (ไม่ใช่ service_role)
+        E2E_SEMANTICS: ${E2E_SEMANTICS:-false}                     # true = ให้ Playwright หา element ได้ (e2e/README.md)
+      dockerfile_inline: |
+        FROM debian:bookworm-slim AS build
+        RUN apt-get update \
+         && apt-get install -y --no-install-recommends git curl unzip xz-utils ca-certificates \
+         && rm -rf /var/lib/apt/lists/*
+        RUN git clone --depth 1 --branch 3.47.0 https://github.com/flutter/flutter.git /opt/flutter
+        ENV PATH=/opt/flutter/bin:$$PATH
+        RUN flutter config --no-analytics --no-cli-animations && flutter precache --web
+        WORKDIR /src
+        COPY pubspec.yaml pubspec.lock ./
+        RUN flutter pub get
+        COPY . .
+        RUN rm -rf build .dart_tool && flutter pub get
+        ARG SUPABASE_URL
+        ARG SUPABASE_PUBLISHABLE_KEY
+        ARG E2E_SEMANTICS=false
+        RUN flutter build web --release \
+              --dart-define=SUPABASE_URL=$$SUPABASE_URL \
+              --dart-define=SUPABASE_PUBLISHABLE_KEY=$$SUPABASE_PUBLISHABLE_KEY \
+              --dart-define=E2E_SEMANTICS=$$E2E_SEMANTICS \
+              --dart-define=APP_ENV=docker
+
+        FROM nginx:1.27-alpine
+        COPY --from=build /src/build/web /usr/share/nginx/html
+    image: roombooking/web:local
+    restart: unless-stopped
+    depends_on:
+      auth: { condition: service_healthy }
+      rest: { condition: service_started }
+    ports: ["127.0.0.1:8000:80"]
+    configs:
+      - source: nginx-gateway
+        target: /etc/nginx/conf.d/default.conf
+
+  meta:
+    image: public.ecr.aws/supabase/postgres-meta:v0.100.0
+    profiles: [studio]
+    restart: unless-stopped
+    depends_on: { db: { condition: service_healthy } }
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+  studio:
+    image: public.ecr.aws/supabase/studio:2026.11.09-sha-1567384
+    profiles: [studio]
+    restart: unless-stopped
+    depends_on: [meta, web]
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      HOSTNAME: "0.0.0.0"
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: Profender
+      DEFAULT_PROJECT_NAME: Room Booking (local)
+      SUPABASE_URL: http://web:80
+      SUPABASE_PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8000}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY:?สร้าง .env ก่อน}   # ใช้ฝั่ง server ของ Studio เท่านั้น ไม่เข้าแอป
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      NEXT_PUBLIC_ENABLE_LOGS: "false"
+
+volumes:
+  db-data:
+
+configs:
+  db-roles:                   # รหัสผ่านของ role ภายในของ Supabase = POSTGRES_PASSWORD (อ่านจาก env ตอน init)
+    content: |
+      \set pgpass `echo "$$POSTGRES_PASSWORD"`
+      select format('ALTER ROLE %I WITH PASSWORD %L', rolname, :'pgpass')
+        from pg_roles
+       where rolname in ('postgres', 'authenticator', 'pgbouncer', 'supabase_auth_admin',
+                         'supabase_functions_admin', 'supabase_storage_admin')
+      \gexec
+  db-jwt:
+    content: |
+      \set jwt_secret `echo "$$JWT_SECRET"`
+      \set jwt_exp `echo "$$JWT_EXP"`
+      ALTER DATABASE postgres SET "app.settings.jwt_secret" TO :'jwt_secret';
+      ALTER DATABASE postgres SET "app.settings.jwt_exp" TO :'jwt_exp';
+  run-migrations:
+    content: |
+      set -euo pipefail
+      psql() { command psql -v ON_ERROR_STOP=1 -q "$$@"; }
+      psql -c "create schema if not exists supabase_migrations;
+               create table if not exists supabase_migrations.schema_migrations
+                 (version text primary key, statements text[], name text);"
+      first=$$(psql -tAc "select count(*) = 0 from supabase_migrations.schema_migrations")
+      for f in /supabase/migrations/*.sql; do
+        [ -e "$$f" ] || continue
+        base=$$(basename "$$f" .sql); v=$${base%%_*}; n=$${base#*_}
+        if [ -n "$$(psql -tAc "select 1 from supabase_migrations.schema_migrations where version = '$$v'")" ]; then continue; fi
+        echo "apply $$base"
+        psql -1 -f "$$f" -c "insert into supabase_migrations.schema_migrations (version, name) values ('$$v', '$$n')"
+      done
+      if [ "$$first" = t ] && [ -s /supabase/seed.sql ]; then echo "seed"; psql -1 -f /supabase/seed.sql; fi
+      psql -c "notify pgrst, 'reload schema'"
+      echo "migrations ok"
+  nginx-gateway:
+    content: |
+      server {
+        listen 80;
+        client_max_body_size 10m;
+        proxy_set_header Host $$host;
+        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $$scheme;
+        proxy_set_header X-Forwarded-Host $$http_host;
+
+        # CORS แบบเดียวกับ Kong ของ Supabase (เปิดจาก localhost / 127.0.0.1 / emulator ได้) · ใช้ CORS ของ gateway อย่างเดียว
+        proxy_hide_header Access-Control-Allow-Origin;
+        proxy_hide_header Access-Control-Allow-Methods;
+        proxy_hide_header Access-Control-Allow-Headers;
+        proxy_hide_header Access-Control-Allow-Credentials;
+        proxy_hide_header Access-Control-Expose-Headers;
+        proxy_hide_header Access-Control-Max-Age;
+        set $$cors_methods "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+        set $$cors_headers "authorization, apikey, content-type, x-client-info, x-supabase-api-version, prefer, range, accept-profile, content-profile";
+
+        location /auth/v1/ {
+          if ($$request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin "*";
+            add_header Access-Control-Allow-Methods $$cors_methods;
+            add_header Access-Control-Allow-Headers $$cors_headers;
+            add_header Access-Control-Max-Age 3600;
+            return 204;
+          }
+          add_header Access-Control-Allow-Origin "*" always;
+          add_header Access-Control-Expose-Headers "content-range, x-total-count" always;
+          proxy_pass http://auth:9999/;
+        }
+        location /rest/v1/ {
+          if ($$request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin "*";
+            add_header Access-Control-Allow-Methods $$cors_methods;
+            add_header Access-Control-Allow-Headers $$cors_headers;
+            add_header Access-Control-Max-Age 3600;
+            return 204;
+          }
+          add_header Access-Control-Allow-Origin "*" always;
+          add_header Access-Control-Expose-Headers "content-range, x-total-count" always;
+          proxy_pass http://rest:3000/;
+        }
+
+        location / {
+          root /usr/share/nginx/html;
+          try_files $$uri $$uri/ /index.html;
+        }
+      }

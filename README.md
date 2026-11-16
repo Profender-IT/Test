@@ -22,6 +22,20 @@ supabase test db                     # pgTAP
 cd e2e && npm ci && npx playwright test   # ดู e2e/README.md
 ```
 
+## ทั้งระบบด้วย Docker Compose (dev/demo)
+```bash
+bash scripts/dev/compose_env.sh          # ครั้งแรก: สร้าง .env (สุ่มรหัสผ่าน/JWT secret · ไม่ขึ้น git)
+docker compose up -d --build             # Postgres + Auth + PostgREST + migrate + เว็บ Flutter
+docker compose --profile studio up -d    # + Supabase Studio
+```
+| URL | อะไร |
+|---|---|
+| http://localhost:8000 | แอป (Flutter web) + `/auth/v1`, `/rest/v1` |
+| http://localhost:3000 | Supabase Studio (profile `studio`) |
+| `localhost:54332` | Postgres (`postgres` / `POSTGRES_PASSWORD` ใน .env) |
+
+config ทั้งหมดอยู่ใน `docker-compose.yml` (nginx, init SQL, ตัวรัน migration แบบ inline) · ค่าลับอยู่ใน `.env` · ใช้ในเครื่องเท่านั้น ไม่ใช่ staging/production
+
 ## CI/CD (GitHub Actions · ubuntu-latest)
 | workflow | เมื่อ | ทำอะไร |
 |---|---|---|
