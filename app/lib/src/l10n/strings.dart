@@ -92,4 +92,44 @@ class S {
   static const keepBooking = 'เก็บไว้';
   static const confirmCancel = 'ยืนยันยกเลิก';
   static const cancelled = 'ยกเลิกการจองแล้ว';
+
+  // ROOM-8 ปรับตามภาพอ้างอิง
+  static const brand = 'Room Booking';
+  static const heroEyebrow = 'ระบบจองห้องประชุม PROFENDER';
+  static const heroBookNow = 'จองห้องว่างตอนนี้';
+  static const sizeAll = 'ทุกห้อง';
+  static const sizeSmall = '2–4 คน';
+  static const sizeMedium = '5–10 คน';
+  static const sizeLarge = '10 คนขึ้นไป';
+  static String filterBy(String label) => 'แสดง$label';
+  static const chooseSize = 'ขนาดห้อง';
+  static String roomsCount(int n) => '$n ห้อง';
+  static const noRoomsForFilter = 'ไม่มีห้องขนาดนี้ ลองเลือกขนาดอื่น';
+  static const quickNowTitle = 'ประชุมด่วน\nตอนนี้';
+  static const quickNowAction = 'ดูห้องว่างวันนี้';
+  static const quickTomorrowTitle = 'ประชุมทีม\nพรุ่งนี้';
+  static const quickTomorrowAction = 'ดูห้องพรุ่งนี้';
+  static const quickLargeTitle = 'ห้องใหญ่\nสำหรับสัมมนา';
+  static const quickLargeAction = 'ดูห้อง 10 คนขึ้นไป';
+  static const footerRulesTitle = 'กติกาการจอง';
+  static const footerRules = [
+    'จองล่วงหน้าได้ไม่เกิน 30 วัน',
+    'ครั้งละ 15 นาที ถึง 4 ชั่วโมง',
+    'ยกเลิกได้ก่อนเวลาประชุมจบ',
+  ];
+  static const footerPrivacyTitle = 'ความเป็นส่วนตัว';
+  static const footerPrivacy = [
+    'คนอื่นเห็นแค่ช่วงที่ไม่ว่าง',
+    'หัวข้อประชุมเห็นเฉพาะผู้จอง',
+    'ข้อมูลอยู่ในระบบของบริษัท',
+  ];
+  static const footerHelpTitle = 'ช่วยเหลือ';
+  static const footerHelp = [
+    'ห้องชำรุดหรืออุปกรณ์เสีย แจ้งฝ่ายอาคาร',
+    'เข้าระบบไม่ได้ แจ้งฝ่าย IT',
+  ];
+  static const footerBottom = '© 2569 Profender · ระบบภายในองค์กร';
+  static const loginEyebrow = 'บัญชีพนักงาน';
+  static const loginTitle = 'เข้าสู่ระบบ\nเพื่อจองห้องประชุม';
+  static const loginSubtitle = 'ใช้อีเมลบริษัทและรหัสผ่านของคุณ';
 }
