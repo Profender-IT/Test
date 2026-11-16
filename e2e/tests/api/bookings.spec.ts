@@ -1,6 +1,6 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { randomSlot } from '../../lib/slots';
-import { rest, signUp, TestUser } from '../../lib/supabase';
+import { cancelAllBookings, rest, signUp, TestUser } from '../../lib/supabase';
 
 // การจองผ่าน REST จริง (PostgREST) ด้วยสิทธิ์เดียวกับแอป · ครอบกติกาใน migration rooms_bookings
 async function rooms(request: APIRequestContext, user: TestUser) {
@@ -28,14 +28,23 @@ async function busy(request: APIRequestContext, user: TestUser, from: Date, to: 
   return (await res.json()) as { booking_id: string | null; room_id: string; is_mine: boolean }[];
 }
 
+
+const created: TestUser[] = [];
+const track = async (p: Promise<TestUser>) => {
+  const u = await p;
+  created.push(u);
+  return u;
+};
+test.afterAll(async ({ request }) => cancelAllBookings(request, created)); // ผู้ใช้สร้างใน beforeAll ใช้ร่วมทุก test
+
 test.describe('bookings', () => {
   let alice: TestUser;
   let bob: TestUser;
   let roomId: string;
 
   test.beforeAll(async ({ request }) => {
-    alice = await signUp(request, 'b-alice');
-    bob = await signUp(request, 'b-bob');
+    alice = await track(signUp(request, 'b-alice'));
+    bob = await track(signUp(request, 'b-bob'));
     const list = await rooms(request, alice);
     expect(list.length).toBeGreaterThanOrEqual(4);
     expect(list.every((r) => r.is_active)).toBe(true);

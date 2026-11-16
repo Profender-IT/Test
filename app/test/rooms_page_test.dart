@@ -85,7 +85,7 @@ void main() {
     expect(find.text('6 คน · ชั้น 2 · ทีวี'), findsOneWidget);
     expect(find.text(S.freeAllDay), findsWidgets);
     expect(
-      find.text(S.bookThisRoom),
+      find.textContaining('จองห้อง A'),
       findsNothing,
       reason: 'ROOM-5 ยังไม่มีปุ่มจองถ้าไม่ส่ง onBook',
     );
@@ -130,7 +130,9 @@ void main() {
       },
     );
     await tester.tap(
-      find.widgetWithText(FilledButton, '${S.bookThisRoom} · วันนี้').first,
+      find
+          .widgetWithText(FilledButton, '${S.bookRoom('ห้อง A')} · วันนี้')
+          .first,
     );
     expect(booked?.id, 'a');
     expect(bookedDay, today);

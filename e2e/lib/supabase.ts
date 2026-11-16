@@ -35,3 +35,14 @@ export function rest(user?: TestUser) {
     },
   };
 }
+
+/** ยกเลิกการจองที่ยังยืนยันอยู่ทั้งหมดของผู้ใช้ทดสอบ (สิทธิ์ของผู้ใช้เอง) · ใช้ใน afterEach กันฐานรกจากการรันซ้ำ */
+export async function cancelAllBookings(request: APIRequestContext, users: TestUser[]) {
+  for (const u of users.splice(0)) {
+    const r = rest(u);
+    await request.patch(`${r.url}/bookings?status=eq.confirmed&ends_at=gt.${new Date().toISOString()}`, {
+      headers: r.headers,
+      data: { status: 'cancelled' },
+    });
+  }
+}

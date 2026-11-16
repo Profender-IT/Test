@@ -351,7 +351,9 @@ class RoomCard extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: FilledButton(
                       onPressed: onBook,
-                      child: Text('${S.bookThisRoom} · ${dayLabel(day, now)}'),
+                      child: Text(
+                        '${S.bookRoom(room.name)} · ${dayLabel(day, now)}',
+                      ),
                     ),
                   ),
                 ],

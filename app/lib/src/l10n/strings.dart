@@ -35,6 +35,7 @@ class S {
   static String capacity(int n) => '$n คน';
   static const busyLabel = 'ไม่ว่าง';
   static const bookThisRoom = 'จองห้องนี้';
+  static String bookRoom(String name) => 'จอง$name';
   static const mine = 'ของคุณ';
   static const infoNoOverlapTitle = 'ไม่มีจองซ้อน';
   static const infoNoOverlapBody =
@@ -46,4 +47,30 @@ class S {
   static const infoPrivacyBody =
       'คนอื่นเห็นแค่ว่าช่วงไหนไม่ว่าง ไม่เห็นชื่อผู้จองหรือหัวข้อประชุม';
   static const footer = 'Profender Room Booking · ภายในองค์กร';
+
+  // ROOM-6 จองห้อง
+  static const bookTitle = 'จองห้อง';
+  static const date = 'วันที่';
+  static const startTime = 'เวลาเริ่ม';
+  static const endTime = 'เวลาจบ';
+  static const timeHint = 'เช่น 09:30';
+  static const meetingTitle = 'หัวข้อประชุม';
+  static const meetingTitleHelper = 'เห็นเฉพาะคุณ คนอื่นเห็นแค่ว่าห้องไม่ว่าง';
+  static const confirmBooking = 'ยืนยันการจอง';
+  static const busyThatDay = 'ช่วงที่ไม่ว่างในวันนี้';
+  static const booked = 'จองสำเร็จ';
+  static const errBadStart = 'กรอกเวลาเริ่มเป็น ชม:นาที เช่น 09:30';
+  static const errBadEnd = 'กรอกเวลาจบเป็น ชม:นาที เช่น 10:30';
+  static const errNotQuarter = 'เวลาต้องลงท้าย :00 :15 :30 หรือ :45';
+  static const errEndBeforeStart = 'เวลาจบต้องหลังเวลาเริ่ม';
+  static const errTooShort = 'จองได้อย่างน้อย 15 นาที';
+  static const errTooLong = 'จองได้ไม่เกิน 4 ชั่วโมงต่อครั้ง';
+  static const errInPast = 'เวลานี้ผ่านไปแล้ว เลือกเวลาที่ยังไม่ถึง';
+  static const errTooFar = 'จองล่วงหน้าได้ไม่เกิน 30 วัน';
+  static const errTitle = 'กรอกหัวข้อประชุม';
+  static const errOverlap = 'ช่วงเวลานี้มีคนจองแล้ว ลองเวลาอื่นหรือห้องอื่น';
+  static const errInvalid = 'ข้อมูลการจองไม่ถูกต้อง';
+  static const errNetwork = 'เชื่อมต่อไม่ได้ ลองอีกครั้ง';
+  static const errEnded = 'การจองนี้จบไปแล้ว ยกเลิกไม่ได้';
+  static const roomNotFound = 'ไม่พบห้องนี้';
 }
