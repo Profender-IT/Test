@@ -17,6 +17,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.busy,
     required this.strip,
     required this.onStrip,
+    required this.badge,
+    required this.onBadge,
   });
 
   final Color background;
@@ -37,6 +39,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color strip;
   final Color onStrip;
 
+  /// ป้ายเล็กสี beige บนการ์ด (แบบป้าย NEW ในภาพอ้างอิง)
+  final Color badge;
+  final Color onBadge;
+
   static const light = AppPalette(
     background: Color(0xFFEDEAE4),
     card: Color(0xFFFFFFFF),
@@ -54,6 +60,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     busy: Color(0xFFA23B2C),
     strip: Color(0xFF1C1B19),
     onStrip: Color(0xFFEDEAE4),
+    badge: Color(0xFFE6E0D6),
+    onBadge: Color(0xFF1C1B19),
   );
 
   static const dark = AppPalette(
@@ -73,6 +81,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     busy: Color(0xFFF2A093),
     strip: Color(0xFF0E0D0C),
     onStrip: Color(0xFFEDEAE4),
+    badge: Color(0xFF3A3631),
+    onBadge: Color(0xFFEDEAE4),
   );
 
   Color tileFor(int index) => tiles[index % tiles.length];
@@ -86,7 +96,13 @@ class AppPalette extends ThemeExtension<AppPalette> {
 }
 
 extension AppPaletteX on BuildContext {
-  AppPalette get palette => Theme.of(this).extension<AppPalette>()!;
+  AppPalette get palette {
+    final theme = Theme.of(this);
+    return theme.extension<AppPalette>() ??
+        (theme.brightness == Brightness.dark
+            ? AppPalette.dark
+            : AppPalette.light);
+  }
 }
 
 const _serif = 'NotoSerifThai';

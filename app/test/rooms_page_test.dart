@@ -18,6 +18,7 @@ const roomA = Room(
   equipment: ['ทีวี'],
 );
 const roomB = Room(id: 'b', name: 'ห้อง B', capacity: 10);
+const roomBig = Room(id: 'c', name: 'ห้องใหญ่', capacity: 30);
 
 Future<List<DateTime>> pump(
   WidgetTester tester, {
@@ -82,7 +83,8 @@ void main() {
     expect(find.text(S.freeNow), findsOneWidget);
     expect(find.text('${S.busyLabel} 10:00–11:00'), findsOneWidget);
     expect(find.text('${S.mine} 14:00–15:00'), findsOneWidget);
-    expect(find.text('6 คน · ชั้น 2 · ทีวี'), findsOneWidget);
+    expect(find.text('ชั้น 2 · ทีวี'), findsOneWidget);
+    expect(find.text('6 คน'), findsOneWidget);
     expect(find.text(S.freeAllDay), findsWidgets);
     expect(
       find.textContaining('จองห้อง A'),
@@ -147,5 +149,54 @@ void main() {
     await pump(tester, rooms: () async => throw Exception('network'));
     expect(find.text(S.loadFailed), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, S.retry), findsOneWidget);
+  });
+
+  testWidgets('บล็อกขนาดห้อง: กรองรายการและบอกจำนวน', (tester) async {
+    await pump(tester, rooms: () async => [roomA, roomB, roomBig]);
+    expect(find.text(S.roomsCount(3)), findsWidgets);
+
+    await tester.tap(find.bySemanticsLabel(S.filterBy(S.sizeLarge)));
+    await tester.pumpAndSettle();
+    expect(find.text('ห้องใหญ่'), findsWidgets);
+    expect(find.text('ห้อง A'), findsNothing);
+    expect(find.text('ห้อง B'), findsNothing);
+
+    await tester.tap(find.bySemanticsLabel(S.filterBy(S.sizeMedium)));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('ห้องใหญ่'),
+      findsNothing,
+      reason: '30 คนไม่อยู่ในกลุ่ม 5–10',
+    );
+    expect(find.text('ห้อง A'), findsWidgets);
+    expect(find.text('ห้อง B'), findsWidgets);
+  });
+
+  testWidgets(
+    'การ์ดทางลัด "ห้องใหญ่" กรอง 10 คนขึ้นไป · "พรุ่งนี้" เปลี่ยนวัน',
+    (tester) async {
+      final requested = await pump(tester, rooms: () async => [roomA, roomBig]);
+      await tester.ensureVisible(find.text(S.quickLargeAction));
+      await tester.tap(find.text(S.quickLargeAction));
+      await tester.pumpAndSettle();
+      expect(find.text('ห้อง A'), findsNothing);
+
+      await tester.ensureVisible(find.text(S.quickTomorrowAction));
+      await tester.tap(find.text(S.quickTomorrowAction));
+      await tester.pumpAndSettle();
+      expect(requested, contains(DateTime(2026, 11, 17)));
+      expect(
+        find.text('ห้อง A'),
+        findsWidgets,
+        reason: 'ทางลัดพรุ่งนี้ล้างตัวกรองขนาด',
+      );
+    },
+  );
+
+  testWidgets('ห้องในขนาดที่เลือกไม่มี → ข้อความแนะนำ', (tester) async {
+    await pump(tester, rooms: () async => [roomA]);
+    await tester.tap(find.bySemanticsLabel(S.filterBy(S.sizeLarge)));
+    await tester.pumpAndSettle();
+    expect(find.text(S.noRoomsForFilter), findsOneWidget);
   });
 }

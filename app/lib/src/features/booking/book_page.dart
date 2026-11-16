@@ -120,8 +120,6 @@ class _BookPageState extends ConsumerState<BookPage> {
   Widget build(BuildContext context) {
     final now = ref.watch(clockProvider)();
     final rooms = ref.watch(roomsProvider);
-    final p = context.palette;
-    final t = Theme.of(context).textTheme;
 
     final idx = rooms.value?.indexWhere((r) => r.id == widget.roomId) ?? -1;
     final room = idx >= 0 ? rooms.value![idx] : null;
@@ -134,161 +132,197 @@ class _BookPageState extends ConsumerState<BookPage> {
         : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(S.bookTitle)),
-      body: rooms.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : room == null
-          ? Center(child: Text(S.roomNotFound, style: t.bodyLarge))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: p.tileFor(idx),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        room.name,
-                        style: t.headlineMedium?.copyWith(color: p.onTile),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        [S.capacity(room.capacity), ?room.floor].join(' · '),
-                        style: t.bodyMedium?.copyWith(color: p.onTile),
-                      ),
-                    ],
-                  ),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const AnnounceStrip(S.announce),
+            PillHeader(
+              title: S.bookTitle,
+              leading: IconButton(
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+            Expanded(
+              child: _body(
+                context,
+                rooms,
+                room,
+                idx,
+                roomSlots,
+                now,
+                fieldError,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _body(
+    BuildContext context,
+    AsyncValue<List<Room>> rooms,
+    Room? room,
+    int idx,
+    List<BusySlot>? roomSlots,
+    DateTime now,
+    String? Function(Set<BookingProblem>) fieldError,
+  ) {
+    final p = context.palette;
+    final t = Theme.of(context).textTheme;
+    return rooms.isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : room == null
+        ? Center(child: Text(S.roomNotFound, style: t.bodyLarge))
+        : ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: p.tileFor(idx),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                const SizedBox(height: 24),
-                const SectionLabel(S.date),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final d in selectableDays(now))
-                      ChoiceChip(
-                        label: Text(dayLabel(d, now)),
-                        selected: isSameDay(d, _day),
-                        showCheckmark: false,
-                        labelStyle: TextStyle(
-                          color: isSameDay(d, _day) ? p.background : p.ink,
-                        ),
-                        onSelected: (_) => setState(() => _day = d),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(fullDateLabel(_day), style: t.bodySmall),
-                const SizedBox(height: 20),
-                const SectionLabel(S.busyThatDay),
-                const SizedBox(height: 12),
-                if (roomSlots == null)
-                  const LinearProgressIndicator()
-                else if (roomSlots.isEmpty)
-                  Text(
-                    S.freeAllDay,
-                    style: t.bodyMedium?.copyWith(color: p.free),
-                  )
-                else
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final s in roomSlots)
-                        Chip(
-                          label: Text(
-                            '${s.isMine ? S.mine : S.busyLabel} ${timeRange(s.start, s.end)}',
-                          ),
-                        ),
-                    ],
-                  ),
-                const SizedBox(height: 24),
-                Row(
+                padding: const EdgeInsets.all(24),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _start,
-                        keyboardType: TextInputType.datetime,
-                        decoration: InputDecoration(
-                          labelText: S.startTime,
-                          hintText: S.timeHint,
-                          errorText: fieldError({
-                            BookingProblem.badStart,
-                            BookingProblem.notQuarter,
-                            BookingProblem.inPast,
-                            BookingProblem.tooFar,
-                          }),
-                          errorMaxLines: 3,
-                        ),
-                      ),
+                    Text(
+                      room.name,
+                      style: t.headlineMedium?.copyWith(color: p.onTile),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _end,
-                        keyboardType: TextInputType.datetime,
-                        decoration: InputDecoration(
-                          labelText: S.endTime,
-                          hintText: S.timeHint,
-                          errorText: fieldError({
-                            BookingProblem.badEnd,
-                            BookingProblem.endBeforeStart,
-                            BookingProblem.tooShort,
-                            BookingProblem.tooLong,
-                          }),
-                          errorMaxLines: 3,
-                        ),
-                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [S.capacity(room.capacity), ?room.floor].join(' · '),
+                      style: t.bodyMedium?.copyWith(color: p.onTile),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _title,
-                  maxLength: 200,
-                  decoration: InputDecoration(
-                    labelText: S.meetingTitle,
-                    helperText: S.meetingTitleHelper,
-                    errorText: fieldError({BookingProblem.titleRequired}),
-                  ),
-                ),
-                if (_serverError != null) ...[
-                  const SizedBox(height: 12),
-                  Semantics(
-                    liveRegion: true,
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline, color: p.busy),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _serverError!,
-                            style: t.bodyMedium?.copyWith(color: p.busy),
-                          ),
+              ),
+              const SizedBox(height: 24),
+              const SectionLabel(S.date),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final d in selectableDays(now))
+                    ChoiceChip(
+                      label: Text(dayLabel(d, now)),
+                      selected: isSameDay(d, _day),
+                      showCheckmark: false,
+                      labelStyle: TextStyle(
+                        color: isSameDay(d, _day) ? p.background : p.ink,
+                      ),
+                      onSelected: (_) => setState(() => _day = d),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(fullDateLabel(_day), style: t.bodySmall),
+              const SizedBox(height: 20),
+              const SectionLabel(S.busyThatDay),
+              const SizedBox(height: 12),
+              if (roomSlots == null)
+                const LinearProgressIndicator()
+              else if (roomSlots.isEmpty)
+                Text(S.freeAllDay, style: t.bodyMedium?.copyWith(color: p.free))
+              else
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final s in roomSlots)
+                      Chip(
+                        label: Text(
+                          '${s.isMine ? S.mine : S.busyLabel} ${timeRange(s.start, s.end)}',
                         ),
-                      ],
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _start,
+                      keyboardType: TextInputType.datetime,
+                      decoration: InputDecoration(
+                        labelText: S.startTime,
+                        hintText: S.timeHint,
+                        errorText: fieldError({
+                          BookingProblem.badStart,
+                          BookingProblem.notQuarter,
+                          BookingProblem.inPast,
+                          BookingProblem.tooFar,
+                        }),
+                        errorMaxLines: 3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _end,
+                      keyboardType: TextInputType.datetime,
+                      decoration: InputDecoration(
+                        labelText: S.endTime,
+                        hintText: S.timeHint,
+                        errorText: fieldError({
+                          BookingProblem.badEnd,
+                          BookingProblem.endBeforeStart,
+                          BookingProblem.tooShort,
+                          BookingProblem.tooLong,
+                        }),
+                        errorMaxLines: 3,
+                      ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _busy ? null : _submit,
-                  child: _busy
-                      ? const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text(S.confirmBooking),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _title,
+                maxLength: 200,
+                decoration: InputDecoration(
+                  labelText: S.meetingTitle,
+                  helperText: S.meetingTitleHelper,
+                  errorText: fieldError({BookingProblem.titleRequired}),
                 ),
-                const SizedBox(height: 24),
+              ),
+              if (_serverError != null) ...[
+                const SizedBox(height: 12),
+                Semantics(
+                  liveRegion: true,
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline, color: p.busy),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _serverError!,
+                          style: t.bodyMedium?.copyWith(color: p.busy),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            ),
-    );
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _busy ? null : _submit,
+                child: _busy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(S.confirmBooking),
+              ),
+              const SizedBox(height: 24),
+            ],
+          );
   }
 }

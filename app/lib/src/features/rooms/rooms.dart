@@ -72,3 +72,24 @@ final busySlotsProvider = FutureProvider.family<List<BusySlot>, DateTime>((
       .map(BusySlot.fromJson)
       .toList();
 });
+
+/// กรองตามขนาดห้อง (บล็อกสี 4 ช่องหน้าแรก)
+enum RoomSize { all, small, medium, large }
+
+bool fitsSize(Room r, RoomSize s) => switch (s) {
+  RoomSize.all => true,
+  RoomSize.small => r.capacity <= 4,
+  RoomSize.medium => r.capacity >= 5 && r.capacity <= 10,
+  RoomSize.large => r.capacity > 10,
+};
+
+class SizeFilter extends Notifier<RoomSize> {
+  @override
+  RoomSize build() => RoomSize.all;
+
+  void select(RoomSize s) => state = s;
+}
+
+final sizeFilterProvider = NotifierProvider<SizeFilter, RoomSize>(
+  SizeFilter.new,
+);
