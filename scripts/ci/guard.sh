@@ -46,7 +46,7 @@ if [[ ! $HEAD_BRANCH =~ $JIRA_KEY_RE ]] && [[ ! $TITLE =~ $JIRA_KEY_RE ]]; then
   err "ไม่พบ Jira key (ROOM-123) ในชื่อ branch หรือ PR"; fi
 # 9) agent ห้ามแตะไฟล์ที่สงวนไว้ให้คน
 if [[ $HEAD_BRANCH == agent/* ]]; then
-  hits=$(echo "$changed" | awk '{print $NF}' | grep -E '^(\.github/|scripts/ci/|\.claude/settings\.json$|AGENTS\.md$|supabase/config\.toml$|app/android/app/build\.gradle(\.kts)?$)' || true)
+  hits=$(echo "$changed" | awk '{print $NF}' | grep -E '^(docker-compose\.ya?ml$|\.github/|scripts/ci/|\.claude/settings\.json$|AGENTS\.md$|supabase/config\.toml$|app/android/app/build\.gradle(\.kts)?$)' || true)
   [ -n "$hits" ] && err "agent แตะไฟล์ที่ต้องให้คนแก้:"$'\n'"$hits"; fi
 # 10) ข้อมูลจริง/secret/keystore ห้ามขึ้น repo
 hits=$(echo "$changed" | awk '$1!~/^D/{print $NF}' | grep -Ei '(^|/)\.env($|\.)|(^|/)key\.properties$|google-services\.json$|\.(jks|keystore|p12|pem|key|dump|backup|bak|sql\.gz|csv|xlsx|xls|parquet|jpg|jpeg|heic|mp4|mov)$' \

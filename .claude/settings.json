@@ -38,6 +38,7 @@
     "ask": [
       "Bash(git push *)",
       "Bash(flutter pub add *)",
+      "Bash(docker compose *)",
       "Bash(npm install *)"
     ],
     "deny": [

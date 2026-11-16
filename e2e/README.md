@@ -17,3 +17,10 @@ npm ci && npx playwright install chromium
 npx playwright test                 # ทั้งหมด · --project=api หรือ --project=web
 ```
 ผู้ใช้ทดสอบสมัครผ่าน Auth API ด้วย publishable key (ไม่ใช้ service_role) อีเมล `e2e-*@example.com` · ห้ามชี้ไป project staging/production
+
+## รันกับ docker compose (ทั้งระบบ · ROOM-3)
+```bash
+bash scripts/dev/compose_env.sh && E2E_SEMANTICS=true docker compose up -d --build
+set -a; . ../.env; set +a
+SUPABASE_URL=http://localhost:8000 SUPABASE_PUBLISHABLE_KEY=$ANON_KEY E2E_WEB_PORT=8000 npx playwright test
+```

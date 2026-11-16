@@ -16,6 +16,7 @@ supabase/migrations/       YYYYMMDDHHMMSS_name.sql เพิ่มไฟล์�
 supabase/tests/database/   pgTAP (RLS / constraint)
 e2e/                       Playwright: tests/api (Supabase REST + RLS) · tests/web (Flutter web smoke)
 scripts/ci/                guard.sh, risk.sh (คนดูแล) · scripts/dev/ สคริปต์ช่วย dev
+docker-compose.yml         ทั้งระบบในไฟล์เดียวสำหรับ dev/demo (Supabase self-host ชุดเล็ก + migrate + เว็บ + Studio) · ไม่ใช่ deploy
 .github/workflows/         ci (reusable) · pr · main · release · retry
 ```
 
@@ -34,7 +35,7 @@ scripts/ci/                guard.sh, risk.sh (คนดูแล) · scripts/dev
 - งานเริ่มจาก Jira (`ROOM-n`) → `docs/tasks/ROOM-n.md` · branch `agent/ROOM-n-short` (Claude) · `feature/…` หรือ `chore/…` (คน) · commit `ROOM-n อธิบาย`
 - PR ไป `main` เท่านั้น ห้าม push ตรง · ทุก PR อัปเดต `docs/STATUS.md` · ข้อตัดสินย่อยลง `docs/DECISIONS.md`
 - ต้องมี test ทุกครั้งที่เปลี่ยน logic · ก่อนเปิด PR รันคำสั่งในหัวข้อ "คำสั่ง" ให้ผ่าน
-- agent ห้ามแตะ: `.github/`, `scripts/ci/`, `.claude/settings.json`, `AGENTS.md`, `supabase/config.toml`, `app/android/app/build.gradle.kts`, migration แบบ contract
+- agent ห้ามแตะ: `docker-compose.yml`, `.github/`, `scripts/ci/`, `.claude/settings.json`, `AGENTS.md`, `supabase/config.toml`, `app/android/app/build.gradle.kts`, migration แบบ contract
 - **ห้ามรัน** `supabase link`, `supabase db push`, `supabase functions deploy`, `supabase secrets`, หรือคำสั่งที่มี `--linked/--remote/--db-url` · deploy เป็นงานของคน
 
 ## กติกา v2 — ขนาด PR และการ merge ตามความเสี่ยง (risk.sh)
@@ -43,7 +44,7 @@ scripts/ci/                guard.sh, risk.sh (คนดูแล) · scripts/dev
 | low | เอกสาร, ข้อความ l10n, asset | ไม่จำกัด | CI ผ่าน → อัตโนมัติ |
 | medium | หน้าจอ, feature ในแอป | 600 · 1 ฟีเจอร์ = 1 PR | CI ผ่าน → อัตโนมัติ |
 | high | migration, auth, config, android, scripts, .github | 250 | ดู MANUAL_MERGE |
-- **MANUAL_MERGE** (คนรีวิวและ merge เองเสมอ): `supabase/migrations/`, `supabase/config.toml`, `supabase/functions/`, `.github/`, `scripts/ci/`, `.claude/settings.json`, `AGENTS.md`, `app/android/app/build.gradle(.kts)`, `AndroidManifest.xml` หลัก, `app/lib/src/config/`, `app/lib/src/supabase/`, `app/lib/src/features/auth/`
+- **MANUAL_MERGE** (คนรีวิวและ merge เองเสมอ): `docker-compose.yml`, `supabase/migrations/`, `supabase/config.toml`, `supabase/functions/`, `.github/`, `scripts/ci/`, `.claude/settings.json`, `AGENTS.md`, `app/android/app/build.gradle(.kts)`, `AndroidManifest.xml` หลัก, `app/lib/src/config/`, `app/lib/src/supabase/`, `app/lib/src/features/auth/`
 - agent ห้าม merge เอง · job `automerge` merge ให้เฉพาะ PR ของ agent ที่ไม่แตะ MANUAL_MERGE และไม่มี `[manual]` ในชื่อ
 - งานที่ต้องให้คนทำบน Supabase staging (db push, ตั้งค่า Auth) → ใส่ `[manual]` ในชื่อ PR + ขั้นตอนไว้ต้น PR แล้วหยุด
 - CI ล้ม: workflow `retry` รันใหม่เองสูงสุด 2 รอบ · ล้มครบ 3 รอบค่อยรายงาน · main แดง = งานด่วนที่สุด
@@ -59,6 +60,7 @@ cd app && flutter pub get && dart format --set-exit-if-changed lib test && flutt
 supabase start && supabase db reset && supabase test db && supabase db lint     # ต้องมี Docker
 cd e2e && npm ci && SUPABASE_URL=… SUPABASE_PUBLISHABLE_KEY=… npx playwright test   # ดู e2e/README.md
 bash scripts/dev/run_local.sh                  # รันแอปบน emulator กับ Supabase local
+bash scripts/dev/compose_env.sh && docker compose up -d --build   # ทั้งระบบ → http://localhost:8000 (ทางเลือกแทน supabase start)
 bash scripts/ci/guard.sh origin/main           # ตรวจกฎก่อน push
 bash scripts/ci/risk.sh origin/main            # ระดับความเสี่ยง/ขนาด/MANUAL_MERGE
 ```

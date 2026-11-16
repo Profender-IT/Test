@@ -6,8 +6,8 @@ set -euo pipefail
 BASE=${1:-origin/main}; HEAD_BRANCH=${2:-$(git rev-parse --abbrev-ref HEAD)}; TITLE=${3:-}
 
 # MANUAL_MERGE: แตะไฟล์เหล่านี้ = คนต้องรีวิวและ merge เองเสมอ (CI ไม่ merge ให้แม้เป็น PR ของ agent)
-#   schema/RLS ของฐานข้อมูล · ค่า Supabase · edge functions · CI/สคริปต์ตรวจ · สิทธิ์ของ Claude · กฎ agent · การเซ็น/สิทธิ์ของแอป Android · โค้ด auth ของแอป
-MANUAL_MERGE='^(supabase/migrations/|supabase/config\.toml$|supabase/functions/|\.github/|scripts/ci/|\.claude/settings\.json$|AGENTS\.md$|app/android/app/build\.gradle(\.kts)?$|app/android/app/src/main/AndroidManifest\.xml$|app/lib/src/(config|supabase)/|app/lib/src/features/auth/)'
+#   docker-compose (ทั้งระบบ dev) · schema/RLS ของฐานข้อมูล · ค่า Supabase · edge functions · CI/สคริปต์ตรวจ · สิทธิ์ของ Claude · กฎ agent · การเซ็น/สิทธิ์ของแอป Android · โค้ด auth ของแอป
+MANUAL_MERGE='^(docker-compose\.ya?ml$|supabase/migrations/|supabase/config\.toml$|supabase/functions/|\.github/|scripts/ci/|\.claude/settings\.json$|AGENTS\.md$|app/android/app/build\.gradle(\.kts)?$|app/android/app/src/main/AndroidManifest\.xml$|app/lib/src/(config|supabase)/|app/lib/src/features/auth/)'
 # high = ข้อมูล/สิทธิ์/โครงสร้างพื้นฐาน (รวม MANUAL_MERGE ทั้งหมด)
 HIGH="$MANUAL_MERGE|^(supabase/seed\.sql$|scripts/|app/android/|app/pubspec\.yaml$)"
 LOW='^(docs/|.*\.md$|app/assets/|app/lib/src/l10n/|.*\.arb$)'
