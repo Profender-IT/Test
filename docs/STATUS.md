@@ -6,19 +6,22 @@
 ## งาน
 | งาน | ชื่อ | สถานะ | PR | หมายเหตุ |
 |---|---|---|---|---|
-| ROOM-1 | bootstrap: Flutter + Supabase + CI (Playwright) | 🔄 รอรีวิว | | profiles + RLS + pgTAP · ไม่มี deploy · MANUAL_MERGE |
-| ROOM-2 | spec → SYSTEM_DESIGN + DESIGN + ADR + แตกงาน (rooms/bookings) | ⏭ ถัดไป | | ส่งแผนให้เจ้าของโปรเจคก่อน |
-| ROOM-3 | docker-compose ทั้งระบบ (dev/demo) | 🔄 รอรีวิว | | ต่อจาก ROOM-1 · MANUAL_MERGE |
+| ROOM-1 | bootstrap: Flutter + Supabase + CI (Playwright) | ✅ | #1 #4 | |
+| ROOM-3 | docker-compose ทั้งระบบ (dev/demo) | ✅ | #2 #3 | |
+| ROOM-2 + ROOM-4 | ออกแบบ + schema ห้อง/การจอง + RLS + pgTAP | 🔄 รอรีวิว | | MANUAL_MERGE (migration) |
+| ROOM-5 | รายการห้อง + ช่วงไม่ว่าง | 🔄 | | ซ้อนบน ROOM-4 |
+| ROOM-6 | ฟอร์มจองห้อง | 🔄 | | ซ้อนบน ROOM-5 |
+| ROOM-7 | การจองของฉัน + ยกเลิก | 🔄 | | ซ้อนบน ROOM-6 |
 สัญลักษณ์: ✅ เสร็จ · 🔄 กำลังทำ · ⏭ ถัดไป · ⬜ ยังไม่เริ่ม · ⛔ ติด
 
 ## ตัดสินแล้ว (ล่าสุดก่อน)
+- 2026-11-16 กติกาการจอง (ADR 0002 ข้อ 3-4): จองทันทีไม่ต้องอนุมัติ · 15 นาที–4 ชม. ทีละ 15 นาที · ล่วงหน้า ≤ 30 วัน · คนอื่นเห็นแค่ช่วงไม่ว่าง
 - 2026-11-16 ADR 0001 (เสนอใน ROOM-1): Flutter (Android) + Supabase · staging/production แยก project · ห้าม service_role ในแอป · config ผ่าน --dart-define · CI บน ubuntu-latest ไม่มี deploy อัตโนมัติ · ADR 0003 (on-prem) ถูกแทนที่
 - 2026-11-16 กติกาการทำงาน GitHub Flow + กติกา v2 ตาม template · MANUAL_MERGE ใน scripts/ci/risk.sh
 
 ## ค้างตัดสิน (ดู docs/adr/0002)
 - region + DPA ของ Supabase production (PDPA)
 - วิธีล็อกอิน (อีเมล+รหัสผ่าน / Microsoft Entra / magic link)
-- กติกาการจอง: อนุมัติหรือไม่, จองล่วงหน้าได้นานเท่าไร, จองซ้ำ, ปล่อยห้องเมื่อไม่มาเช็กอิน
 - แจ้งเตือน (ในแอป / push FCM / อีเมล-ปฏิทิน)
 
 ## Infrastructure (คนอัปเดต)

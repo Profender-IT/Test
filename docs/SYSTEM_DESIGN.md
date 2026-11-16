@@ -35,5 +35,40 @@
 - region/DPA ของ Supabase: ADR 0002 ข้อ 1 ต้องตัดสินก่อน production
 - auth: ADR 0002 ข้อ 2 · ห้ามเปิด signup สาธารณะบน production ถ้าใช้อีเมล+รหัสผ่าน (จำกัดโดเมนบริษัทหรือเชิญเท่านั้น)
 
-## 6. โดเมน (รอเติมจาก docs/spec/)
-- entity ตั้งต้นที่คาด: `profiles` (มีแล้ว), `rooms`, `bookings` (room_id, user_id, during tstzrange, status) · ER (mermaid) · state machine ของการจอง · แจ้งเตือน · รายงานการใช้ห้อง
+## 6. โดเมน (ROOM-2/ROOM-4 · ระยะ 1)
+```mermaid
+erDiagram
+  AUTH_USERS ||--|| PROFILES : "1:1 (trigger)"
+  AUTH_USERS ||--o{ BOOKINGS : "จอง"
+  ROOMS ||--o{ BOOKINGS : "ถูกจอง"
+  ROOMS { uuid id PK
+          text name UK
+          int capacity
+          text floor
+          text_arr equipment
+          bool is_active }
+  BOOKINGS { uuid id PK
+             uuid room_id FK
+             uuid user_id FK
+             text title "PDPA"
+             timestamptz starts_at
+             timestamptz ends_at
+             booking_status status
+             timestamptz cancelled_at }
+```
+```mermaid
+stateDiagram-v2
+  [*] --> confirmed: จอง (insert · ผ่านกติกาเวลา + ไม่ซ้อน)
+  confirmed --> cancelled: เจ้าของยกเลิก (ก่อนเวลาจบ)
+  cancelled --> [*]
+```
+| กติกา | บังคับที่ |
+|---|---|
+| ห้องเดียวกันห้ามจองซ้อน (ยกเลิกแล้วไม่นับ) | exclusion constraint `bookings_no_overlap` (btree_gist + tstzrange `[)`) |
+| ทีละ 15 นาที · 15 นาที–4 ชม. · เวลาจบ > เริ่ม | CHECK |
+| ไม่จองย้อนหลัง · ล่วงหน้า ≤ 30 วัน · ยกเลิกได้ก่อนเวลาจบ · ยกเลิกแล้วกลับไม่ได้ | trigger `bookings_enforce_rules` |
+| เห็น/ยกเลิกได้เฉพาะของตัวเอง · จองในนามคนอื่นไม่ได้ · จองห้องที่ปิดไม่ได้ | RLS + column grant |
+| คนอื่นเห็นแค่ช่วงไม่ว่าง (ไม่เห็นชื่อ/หัวข้อ) | `room_busy_slots(from, to)` security definer · ช่วง ≤ 31 วัน |
+
+หน้าจอ (go_router): `/` รายการห้อง + สถานะว่างตอนนี้ + ช่วงไม่ว่างตามวัน · `/rooms/:id/book` ฟอร์มจอง · `/my-bookings` การจองของฉัน + ยกเลิก · `/login`
+ระยะ 2: อนุมัติ, จองซ้ำ, เช็กอิน/ปล่อยห้อง, push, ปฏิทิน Outlook, หน้าแอดมินจัดการห้อง
