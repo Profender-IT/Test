@@ -3,12 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'features/auth/login_page.dart';
-import 'features/home/home_page.dart';
+import 'features/booking/book_page.dart';
+import 'features/home/home_shell.dart';
 import 'supabase/providers.dart';
 
 abstract final class Routes {
   static const home = '/';
   static const login = '/login';
+  static const myBookings = '/my-bookings';
+  static String book(String roomId, DateTime day) =>
+      '/rooms/$roomId/book?day=${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
 }
 
 /// หน้าไหนต้องล็อกอิน: ทุกหน้ายกเว้น /login
@@ -31,7 +35,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       location: state.matchedLocation,
     ),
     routes: [
-      GoRoute(path: Routes.home, builder: (_, _) => const HomePage()),
+      GoRoute(path: Routes.home, builder: (_, _) => const HomeShell()),
+      GoRoute(
+        path: Routes.myBookings,
+        builder: (_, _) => const HomeShell(tab: 1),
+      ),
+      GoRoute(
+        path: '/rooms/:id/book',
+        builder: (context, state) => BookPage(
+          roomId: state.pathParameters['id']!,
+          initialDay:
+              DateTime.tryParse(state.uri.queryParameters['day'] ?? '') ??
+              DateTime.now(),
+          onDone: () =>
+              context.canPop() ? context.pop() : context.go(Routes.home),
+        ),
+      ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginPage()),
     ],
   );

@@ -8,10 +8,10 @@
 |---|---|---|---|---|
 | ROOM-1 | bootstrap: Flutter + Supabase + CI (Playwright) | ✅ | #1 #4 | |
 | ROOM-3 | docker-compose ทั้งระบบ (dev/demo) | ✅ | #2 #3 | |
-| ROOM-2 + ROOM-4 | ออกแบบ + schema ห้อง/การจอง + RLS + pgTAP | 🔄 รอรีวิว | | MANUAL_MERGE (migration) |
-| ROOM-5 | รายการห้อง + ช่วงไม่ว่าง | 🔄 | | ซ้อนบน ROOM-4 |
-| ROOM-6 | ฟอร์มจองห้อง | 🔄 | | ซ้อนบน ROOM-5 |
-| ROOM-7 | การจองของฉัน + ยกเลิก | 🔄 | | ซ้อนบน ROOM-6 |
+| ROOM-2 + ROOM-4 | ออกแบบ + schema ห้อง/การจอง + RLS + pgTAP | 🔄 รอรีวิว | #5 | MANUAL_MERGE (migration) · CI ผ่าน |
+| ROOM-5 | design system + รายการห้อง | 🔄 | #6 | ซ้อนบน #5 |
+| ROOM-6 | ฟอร์มจองห้อง | 🔄 | #7 | ซ้อนบน #6 |
+| ROOM-7 | การจองของฉัน + ยกเลิก | 🔄 | #8 | ซ้อนบน #7 |
 สัญลักษณ์: ✅ เสร็จ · 🔄 กำลังทำ · ⏭ ถัดไป · ⬜ ยังไม่เริ่ม · ⛔ ติด
 
 ## ตัดสินแล้ว (ล่าสุดก่อน)

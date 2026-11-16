@@ -60,6 +60,19 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # ฟอนต์ bundle ในแอป (ห้ามโหลดจากเน็ตตอน runtime · OFL ใน assets/fonts/)
+  fonts:
+    - family: Sarabun
+      fonts:
+        - asset: assets/fonts/Sarabun-Regular.ttf
+        - asset: assets/fonts/Sarabun-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Sarabun-SemiBold.ttf
+          weight: 600
+    - family: NotoSerifThai
+      fonts:
+        - asset: assets/fonts/NotoSerifThai.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -4,14 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'config/env.dart';
 import 'l10n/strings.dart';
 import 'router.dart';
-
-ThemeData _theme(Brightness b) => ThemeData(
-  colorSchemeSeed: const Color(
-    0xFF1F4E79,
-  ), // TODO(ROOM-2): สร้าง theme จาก docs/design/ds/tokens.json
-  brightness: b,
-  useMaterial3: true,
-);
+import 'theme/app_theme.dart';
 
 class RoomBookingApp extends ConsumerWidget {
   const RoomBookingApp({super.key});
@@ -20,15 +13,15 @@ class RoomBookingApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       title: S.appTitle,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       routerConfig: ref.watch(routerProvider),
       debugShowCheckedModeBanner: false,
       builder: (context, child) => Env.appEnv == 'production'
           ? child!
           : Banner(
               message: Env.appEnv.toUpperCase(),
-              location: BannerLocation.topEnd,
+              location: BannerLocation.bottomStart,
               child: child!,
             ),
     );
@@ -45,6 +38,7 @@ class ConfigErrorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: S.appTitle,
+      theme: buildAppTheme(Brightness.light),
       home: Scaffold(
         appBar: AppBar(title: const Text(S.configError)),
         body: ListView(
