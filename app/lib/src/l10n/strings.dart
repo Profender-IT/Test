@@ -73,4 +73,23 @@ class S {
   static const errNetwork = 'เชื่อมต่อไม่ได้ ลองอีกครั้ง';
   static const errEnded = 'การจองนี้จบไปแล้ว ยกเลิกไม่ได้';
   static const roomNotFound = 'ไม่พบห้องนี้';
+
+  // ROOM-7 การจองของฉัน
+  static const tabRooms = 'ห้อง';
+  static const tabMine = 'การจองของฉัน';
+  static const upcoming = 'กำลังจะถึง';
+  static const history = 'ประวัติ';
+  static const noUpcoming = 'ยังไม่มีการจองที่กำลังจะถึง';
+  static const noUpcomingAction = 'ดูห้องว่าง';
+  static const statusConfirmed = 'ยืนยันแล้ว';
+  static const statusCancelled = 'ยกเลิกแล้ว';
+  static const statusEnded = 'จบแล้ว';
+  static const statusNow = 'กำลังใช้ห้อง';
+  static const cancelBooking = 'ยกเลิกการจอง';
+  static String cancelConfirmTitle(String room) => 'ยกเลิกการจอง$room?';
+  static String cancelConfirmBody(String when) =>
+      '$when · ห้องจะว่างให้คนอื่นจองทันที และย้อนกลับไม่ได้';
+  static const keepBooking = 'เก็บไว้';
+  static const confirmCancel = 'ยืนยันยกเลิก';
+  static const cancelled = 'ยกเลิกการจองแล้ว';
 }
