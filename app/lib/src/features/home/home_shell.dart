@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/strings.dart';
 import '../../supabase/providers.dart';
+
+import 'package:go_router/go_router.dart';
+
+import '../../router.dart';
 import '../rooms/rooms_page.dart';
 
 /// โครงหน้าหลักหลังล็อกอิน: แถบบน + เนื้อหา (ROOM-7 เพิ่มแท็บ "การจองของฉัน")
@@ -22,7 +26,12 @@ class HomeShell extends ConsumerWidget {
           ),
         ],
       ),
-      body: const SafeArea(top: false, child: RoomsPage()),
+      body: SafeArea(
+        top: false,
+        child: RoomsPage(
+          onBook: (room, day) => context.push(Routes.book(room.id, day)),
+        ),
+      ),
     );
   }
 }

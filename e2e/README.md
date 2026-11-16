@@ -24,3 +24,5 @@ bash scripts/dev/compose_env.sh && E2E_SEMANTICS=true docker compose up -d --bui
 set -a; . ../.env; set +a
 SUPABASE_URL=http://localhost:8000 SUPABASE_PUBLISHABLE_KEY=$ANON_KEY E2E_WEB_PORT=8000 npx playwright test
 ```
+
+> ฐาน local ที่รันซ้ำหลายรอบจะมีการจองค้าง (ผู้ใช้ทดสอบสุ่มช่วงเวลาพรุ่งนี้) · ถ้าช่วงเต็ม ให้ `supabase db reset` · CI ใช้ฐานใหม่ทุกครั้ง
