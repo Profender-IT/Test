@@ -10,6 +10,7 @@ import 'supabase/providers.dart';
 abstract final class Routes {
   static const home = '/';
   static const login = '/login';
+  static const myBookings = '/my-bookings';
   static String book(String roomId, DateTime day) =>
       '/rooms/$roomId/book?day=${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
 }
@@ -35,6 +36,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     ),
     routes: [
       GoRoute(path: Routes.home, builder: (_, _) => const HomeShell()),
+      GoRoute(
+        path: Routes.myBookings,
+        builder: (_, _) => const HomeShell(tab: 1),
+      ),
       GoRoute(
         path: '/rooms/:id/book',
         builder: (context, state) => BookPage(
