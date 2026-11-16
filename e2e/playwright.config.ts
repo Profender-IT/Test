@@ -16,7 +16,7 @@ export default defineConfig({
     {
       name: 'web',
       testDir: './tests/web',
-      use: { ...devices['Pixel 7'], baseURL: `http://127.0.0.1:${webPort}` },
+      use: { ...devices['Pixel 7'], baseURL: `http://127.0.0.1:${webPort}`, timezoneId: 'Asia/Bangkok', locale: 'th-TH' },
     },
   ],
   // Flutter web build (สร้างก่อนด้วย flutter build web ใน CI) เสิร์ฟแบบ static

@@ -18,5 +18,5 @@ test('เข้าสู่ระบบแล้วเห็นโปรไฟ�
   await page.getByRole('button', { name: 'เข้าสู่ระบบ' }).click();
 
   await expect(page.getByText(user.email)).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText('ผู้ทดสอบ web')).toBeVisible();
+  await expect(page.getByText('สวัสดี ผู้ทดสอบ web')).toBeVisible();
 });

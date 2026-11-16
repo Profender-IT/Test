@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'features/auth/login_page.dart';
-import 'features/home/home_page.dart';
+import 'features/home/home_shell.dart';
 import 'supabase/providers.dart';
 
 abstract final class Routes {
@@ -31,7 +31,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       location: state.matchedLocation,
     ),
     routes: [
-      GoRoute(path: Routes.home, builder: (_, _) => const HomePage()),
+      GoRoute(path: Routes.home, builder: (_, _) => const HomeShell()),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginPage()),
     ],
   );
