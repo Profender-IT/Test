@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm i)",
+      "Bash(pnpm install)",
+      "Bash(pnpm check)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm --filter *)",
+      "Bash(bash scripts/ci/guard.sh *)",
+      "Bash(bash scripts/ci/risk.sh *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(node --test *)",
+      "Bash(git push -u origin agent/*)",
+      "Bash(git push origin agent/*)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh run watch *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(docker compose *)",
+      "Bash(bash scripts/db/migrate.sh *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./dev/.env)",
+      "Read(./local/raw/**)",
+      "Read(./**/*.dwg)",
+      "Read(./**/*.xlsx)",
+      "Read(./**/*.dump)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(psql *192.168.110.*)",
+      "Bash(redis-cli *192.168.110.*)",
+      "Bash(mosquitto_sub *192.168.110.*)",
+      "Bash(mosquitto_pub *192.168.110.*)",
+      "Bash(curl *192.168.110.*)",
+      "Bash(wget *192.168.110.*)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push origin main *)",
+      "WebFetch(domain:192.168.110.175)",
+      "WebFetch(domain:192.168.110.176)",
+      "WebFetch(domain:192.168.110.177)",
+      "WebFetch(domain:192.168.110.26)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr merge *)",
+      "Bash(git push origin main*)",
+      "Bash(git push * main)"
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+# merge เข้า main → build image tag = SHA → staging (:8089) + E2E
+# environment: staging → GitHub สร้าง deployment ให้ และ GitHub for Jira แสดงใน work item ที่มี key ใน commit
+name: main
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}      # automerge ของ pr.yml สั่ง deploy
+
+concurrency: { group: staging, cancel-in-progress: false }
+
+jobs:
+  staging:
+    runs-on: [self-hosted, ops]
+    timeout-minutes: 30          # runner หาย/ค้าง → จบใน 30 นาที ไม่ค้างข้ามคืน
+    environment:
+      name: staging
+      url: http://192.168.110.177:8089/roombooking
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          for d in apps/*/; do s=$(basename "$d"); [ -f "$d/Dockerfile" ] || continue
+            docker build -t roombooking/$s:${{ github.sha }} -f "$d/Dockerfile" .
+          done
+      - name: deploy staging
+        run: |
+          cd /opt/staging-roombooking
+          sed -i "s/^TAG=.*/TAG=${{ github.sha }}/" .env
+          docker compose up -d db redis --wait
+          # migration ด้วย psql ใน image ของ PG (ไม่ต้องติดตั้ง psql บน ops) · seed ไม่รันอัตโนมัติ
+          set -a; . /opt/staging-roombooking/.env; set +a
+          docker run --rm --network roombooking-staging_backend -v "$GITHUB_WORKSPACE":/repo:ro -w /repo \
+            -e DATABASE_URL="postgres://roombooking:${STG_DB_PASS}@db:5432/roombooking" \
+            pgvector/pgvector:0.8.2-pg18 bash scripts/db/migrate.sh
+          docker compose --profile app up -d --remove-orphans
+          ok=0; for i in $(seq 24); do curl -sf -o /dev/null http://127.0.0.1:8089/roombooking/ && { ok=1; break; }; sleep 5; done
+          if [ "$ok" != 1 ]; then docker compose --profile app ps; docker compose --profile app logs --tail 60 web; echo "::error::staging web ไม่ตอบที่ /roombooking/"; exit 1; fi
+          # api health บังคับเมื่อมี endpoint แล้ว · ก่อนหน้านั้นเตือนอย่างเดียว
+          if grep -rqs "/health" apps/api/src; then
+            ok=0; for i in $(seq 24); do curl -sf http://127.0.0.1:8089/roombooking/api/health && { ok=1; break; }; sleep 5; done
+            [ "$ok" = 1 ] || { docker compose --profile app logs --tail 60 api; echo "::error::api health ไม่ผ่าน"; exit 1; }
+          else echo "::warning::ยังไม่มี /api/health (มาในงาน ROOM-api)"; fi
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: e2e
+        run: |
+          corepack enable && pnpm i --frozen-lockfile
+          if node -e "process.exit(require('./package.json').scripts?.e2e ? 0 : 1)"; then
+            pnpm e2e --base-url http://127.0.0.1:8089/roombooking
+          else echo "::warning::ยังไม่มีคำสั่ง pnpm e2e (เพิ่มในงาน web foundation)"; fi
+      - run: echo "${{ github.sha }} $(date -Is)" >> /opt/staging-roombooking/staged.log      # release.yml ใช้ตรวจเวลา soak
+
+  publish:                    # ADR 0003: push image ไป GHCR เพื่อให้ VPS/cloud ดึงไปใช้ได้ · เปิดด้วย repo variable PUBLISH_IMAGES=1
+    needs: [staging]
+    if: vars.PUBLISH_IMAGES == '1'
+    runs-on: [self-hosted, ops]
+    timeout-minutes: 20
+    permissions: { contents: read, packages: write }
+    steps:
+      - env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}", OWNER: "${{ github.repository_owner }}", SHA: "${{ github.sha }}" }
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          for s in $(ls apps/*/Dockerfile 2>/dev/null | cut -d/ -f2); do
+            docker tag roombooking/$s:$SHA ghcr.io/$owner/roombooking-$s:$SHA
+            docker push ghcr.io/$owner/roombooking-$s:$SHA
+          done
+          docker logout ghcr.io
