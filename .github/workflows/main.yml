@@ -27,6 +27,7 @@ jobs:
     steps:
       - name: ตรวจว่าตั้งค่า Environment staging แล้ว
         id: cfg
+        working-directory: ${{ github.workspace }}   # ยังไม่ checkout → โฟลเดอร์ app/ ยังไม่มี
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
             echo "::warning::ยังไม่ตั้ง vars SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY ใน Environment staging · ข้าม build"
