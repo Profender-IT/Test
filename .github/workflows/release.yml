@@ -1,0 +1,72 @@
+# tag vX.Y.Z บน main → ทดสอบ → build AAB + APK ของ production (เซ็นด้วย keystore จาก secrets) → GitHub Release
+# ไม่อัปโหลด Play Store และไม่ deploy Supabase · migration production คนรัน `supabase db push` เองก่อน tag
+name: release
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+concurrency: { group: release, cancel-in-progress: false }
+
+jobs:
+  on-main:                    # tag ต้องชี้ commit ที่อยู่บน main แล้ว
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::tag ต้องอยู่บน main"; exit 1; }
+
+  ci:
+    needs: [on-main]
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: [ci]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production   # ตั้ง required reviewers ใน Environment นี้ให้คนกดอนุมัติก่อน build
+    permissions: { contents: write }
+    defaults: { run: { working-directory: app } }
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: ตรวจค่า production + keystore
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          miss=""
+          for v in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY KS KS_PASS KEY_ALIAS KEY_PASS; do [ -n "${!v}" ] || miss="$miss $v"; done
+          [ -z "$miss" ] || { echo "::error::Environment production ขาด:$miss"; exit 1; }
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$RUNNER_TEMP/upload.jks" "$KS_PASS" "$KEY_ALIAS" "$KEY_PASS" > android/key.properties
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "3.47.0", channel: stable, cache: true }
+      - name: build AAB + APK
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          args=(--release --build-name="$v" --build-number=${{ github.run_number }}
+                --dart-define=SUPABASE_URL="$SUPABASE_URL"
+                --dart-define=SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+                --dart-define=APP_ENV=production)
+          flutter build appbundle "${args[@]}"
+          flutter build apk "${args[@]}"
+      - name: GitHub Release
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          cp build/app/outputs/bundle/release/app-release.aab "room-booking-$GITHUB_REF_NAME.aab"
+          cp build/app/outputs/flutter-apk/app-release.apk "room-booking-$GITHUB_REF_NAME.apk"
+          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --generate-notes \
+            "room-booking-$GITHUB_REF_NAME.aab" "room-booking-$GITHUB_REF_NAME.apk"
+      - if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/upload.jks"

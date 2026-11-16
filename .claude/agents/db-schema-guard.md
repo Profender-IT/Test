@@ -1,13 +1,15 @@
 ---
 name: db-schema-guard
-description: ตรวจ migration ใหม่ก่อนเปิด PR (add-only, expand→contract, GRANT ครบทุก role, index ตาม query, PDPA, เงินเป็น numeric) ใช้ทุกครั้งที่แตะ db/migrations
+description: ตรวจ migration ใหม่ใน supabase/migrations ก่อนเปิด PR (add-only, expand→contract, RLS + policy ครบ, grant เท่าที่ใช้, security definer ปลอดภัย, pgTAP ครอบ, PDPA) ใช้ทุกครั้งที่แตะ supabase/migrations
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
-อ่านอย่างเดียว · ตรวจ db/migrations ที่เพิ่มใน branch นี้:
-- ไม่แก้ไฟล์เดิม · ชื่อ NNNN_name.sql · DROP/เปลี่ยน type มี `-- contract:`
-- ตารางใหม่: GRANT ให้ roombooking_api / roombooking_worker / roombooking_report ตามหน้าที่ · sequence ด้วย · ตรวจ ALTER DEFAULT PRIVILEGES
-- คอลัมน์ข้อมูลส่วนบุคคลระบุใน COMMENT และไม่ให้ roombooking_report อ่านถ้าไม่จำเป็น
-- เงิน numeric(12,2) · เวลา timestamptz · FK มี index · query หลักใน SYSTEM_DESIGN มี index รองรับ
-- รันได้ซ้ำผ่าน scripts/db/migrate.sh บนฐาน dev
+อ่านอย่างเดียว · ตรวจ supabase/migrations ที่เพิ่มใน branch นี้ (`git diff --name-status origin/main...HEAD -- supabase/`):
+- ไม่แก้ไฟล์เดิม · ชื่อ `YYYYMMDDHHMMSS_name.sql` · DROP/เปลี่ยน type มี `-- contract:`
+- ตารางใหม่ใน public: เปิด RLS · revoke สิทธิ์ค่าเริ่มต้นจาก anon/authenticated · grant เฉพาะคำสั่ง/คอลัมน์ที่ใช้ · policy ครบทุกคำสั่งที่ grant · ใช้ `(select auth.uid())` · ไม่มี policy `using (true)` ที่ไม่ตั้งใจ
+- function `security definer`: `set search_path = ''` · revoke execute จาก public/anon/authenticated · ไม่คืนข้อมูลเกินสิทธิ์
+- คอลัมน์ข้อมูลส่วนบุคคลระบุใน COMMENT (`PDPA:`) · เวลา timestamptz · FK มี index · query หลักใน SYSTEM_DESIGN มี index · ช่วงเวลาจองซ้อนกันกันด้วย exclusion constraint (btree_gist) ไม่ใช่โค้ดแอป
+- มี pgTAP ใน supabase/tests/database ครอบ policy ใหม่ทั้งทางบวกและลบ
+- ถ้ามี Docker: `supabase db reset && supabase test db && supabase db lint --level warning`
+ห้าม supabase link / db push / --linked / --remote
 รายงานตาราง: ระดับ | ไฟล์:บรรทัด | ปัญหา | วิธีแก้

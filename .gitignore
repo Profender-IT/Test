@@ -1,5 +1,4 @@
 node_modules/
-dist/
 coverage/
 .env
 .env.*
@@ -10,3 +9,7 @@ local/
 .DS_Store
 test-results/
 playwright-report/
+# Android signing (release.yml สร้างจาก secrets ใน runner)
+key.properties
+*.jks
+*.keystore

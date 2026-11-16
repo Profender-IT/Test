@@ -1,0 +1,15 @@
+{
+  "name": "room-booking-e2e",
+  "private": true,
+  "description": "Playwright: API tests กับ Supabase (RLS) + smoke test ของ Flutter web build",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:web": "playwright test --project=web"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "http-server": "14.1.1"
+  }
+}
