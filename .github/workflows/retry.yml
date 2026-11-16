@@ -1,8 +1,8 @@
-# รันใหม่อัตโนมัติเมื่อ CI ล้ม (ส่วนใหญ่เป็นเครือข่ายของ runner ในโรงงาน) · สูงสุด 2 รอบ · ใช้ runner ของ GitHub จึงไม่พึ่ง .177
+# รันใหม่อัตโนมัติเมื่อ CI ล้ม (เช่น ดาวน์โหลด dependency หรือ docker pull ล้ม) · สูงสุด 2 รอบ · ใช้ runner ของ GitHub
 name: retry
 on:
   workflow_run:
-    workflows: [pr, main]
+    workflows: [pr, main, release]
     types: [completed]
 permissions: { actions: write }
 jobs:

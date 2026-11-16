@@ -1,57 +1,42 @@
-# ตั้งค่าโปรเจคใหม่บนโครงสร้างเดิม (.176 / .177) — คนทำ ~1–2 ชั่วโมง
+# ตั้งค่าโปรเจค (คนทำ ~1 ชั่วโมง) — Flutter + Supabase + GitHub Actions
 
-> คำสั่งทั้งหมดของ dev / .177 / .176 พร้อมกับดักที่เจอมาแล้ว: `docs/setup/OPS_COMMANDS.md`
+## 1. Repo และ ruleset
+- repo: `Profender-IT/Test` (private) · main = template · PR แรก `ROOM-1 bootstrap`
+- ruleset ของ main: บังคับ PR · required checks: `risk`, `guard`, `ci / flutter`, `ci / supabase` · ห้าม force push
+- Settings → Actions → General → Workflow permissions: Read and write (ให้ job automerge / summary ทำงาน)
 
-## 0. ก่อนเริ่ม
-- **DNS ของ .177**: ใช้ `/etc/resolv.conf` แบบกำหนดเอง (nameserver เราเตอร์ + สำรอง, `options timeout:2 attempts:2 rotate`) แทน systemd-resolved ที่หมดเวลาเป็นพักๆ
-- **ขยาย RAM ของ VM ops (.177) เป็น ≥ 8 GB** (Proxmox .175 → ปิด VM ops → Hardware → Memory) · 4.8 GB ไม่พอ 2 โปรเจค
-- ตั้ง DNS สำรองของ Docker บน .177 แล้ว (`/etc/docker/daemon.json`) · ตัวเฝ้า runner (`runner-watchdog.timer`) ทำงานอยู่
-
-## 1. Repo
+## 2. Supabase (คนทำเท่านั้น · Claude Code ถูก deny)
+1. สร้าง 2 project: `roombooking-staging`, `roombooking-prod` (region ตาม ADR 0002 ข้อ 1)
+2. Auth: ปิด signup สาธารณะบน production (หรือจำกัดโดเมน) · ตั้ง Site URL / redirect ตามวิธีล็อกอินที่เลือก
+3. migration (ทำหลัง PR ที่มี migration merge แล้ว):
 ```bash
-mkdir -p ~/Job/Profender/Project/Test && cd $_
-unzip ~/Downloads/profender_project_template.zip -d .
-bash scripts/setup/init_project.sh      # ถามชื่อโปรเจค/key/slug/พอร์ต แล้วแทนค่าทุกไฟล์
-git init -b main && git add -A && git commit -m "ROOM-1 โครงโปรเจคจาก template"
-gh repo create Profender-IT/Test --private --source . --push
+supabase login
+supabase link --project-ref <staging-ref> && supabase db push      # staging ก่อนเสมอ
+supabase link --project-ref <prod-ref>    && supabase db push      # production ก่อน tag release
 ```
-ruleset ของ main: บังคับ PR + required checks `pr / risk`, `pr / guard`, `pr / test`, `pr / build` · ไม่บังคับ approval (โหมดคนเดียว)
-Settings → Actions → General → Workflow permissions: อนุญาต read/write (ให้ job automerge ทำงาน)
+4. **ห้าม** นำ service_role / secret key ไปใส่ใน GitHub vars ของแอป หรือส่งให้ Claude
 
-## 2. Runner ใช้ร่วมกับ SCADA (ระดับ organization)
-runner ตอนนี้ลงทะเบียนกับ repo Modern-SCADA อย่างเดียว · ให้ย้ายเป็นระดับ organization ครั้งเดียว:
-1. GitHub → Organization Profender-IT → Settings → Actions → Runners → New runner → ได้ token
-2. บน .177 (ผู้ใช้ที่ติดตั้ง runner):
-```bash
-cd /opt/actions-runner
-sudo ./svc.sh stop && sudo ./svc.sh uninstall
-sudo -u deploy ./config.sh remove --token <token จากหน้า runner ของ repo SCADA>
-sudo -u deploy ./config.sh --url https://github.com/Profender-IT --token <token ระดับ org> --name ops --labels self-hosted,ops --unattended
-sudo ./svc.sh install deploy && sudo ./svc.sh start
-```
-3. แก้ชื่อ service ใน `/usr/local/bin/runner-watchdog.sh` และ override `Restart=always` ให้ตรงชื่อ service ใหม่ (`systemctl list-units 'actions.runner.*'`)
-- runner ตัวเดียวรับงานทีละงาน 2 repo จะต่อคิวกัน · ถ้าคิวยาวให้เพิ่ม runner ตัวที่ 2 (หลังเพิ่ม RAM)
+## 3. GitHub Environments
+| Environment | vars | secrets | protection |
+|---|---|---|---|
+| `staging` | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (ของ staging) | – | – |
+| `production` | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (ของ prod) | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | required reviewers · deployment tags `v*` |
 
-## 3. Staging บน .177
+สร้าง upload keystore (เก็บสำรองนอก repo):
 ```bash
-sudo mkdir -p /opt/staging-roombooking && cd /opt/staging-roombooking
-sudo cp <repo>/ops/staging/docker-compose.yml .
-printf 'TAG=init\nBASE_PATH=/roombooking\nSTG_DB_PASS=%s\nSTG_API_PASS=%s\n' "$(openssl rand -hex 16)" "$(openssl rand -hex 16)" | sudo tee .env >/dev/null
-sudo chown -R deploy: . && sudo chmod 600 .env
-sudo docker compose up -d db redis traefik --wait
+keytool -genkey -v -keystore upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+base64 -i upload.jks | gh secret set ANDROID_KEYSTORE_BASE64 --env production
 ```
-เปิดดูได้ที่ `http://192.168.110.177:8089/roombooking/` หลัง merge แรก
 
-## 4. Production DB บน .176 (ทำเมื่อพร้อมขึ้นจริง)
+## 4. Release
 ```bash
-sudo -u postgres psql -f ops/production/create_db.sql      # แก้รหัสผ่านใน psql ด้วย \password ทีหลัง
+git switch main && git pull && git tag v0.1.0 && git push origin v0.1.0
 ```
-- pg_hba.conf: อนุญาตเฉพาะ IP ของ VM production ไปที่ database `roombooking`
-- pgBackRest backup ทั้ง cluster อยู่แล้ว · ตรวจ restore ทดสอบ database นี้ 1 ครั้ง
+→ `release.yml` รอคนอนุมัติ Environment production → AAB/APK ใน GitHub Release → อัปโหลด Play Console ด้วยมือ
 
-## 5. Claude Code
-ติดตั้ง skill ชุดเดียวกับ SCADA (ดู docs/SKILLS.md ของ repo SCADA) เช่น `npx skills add mattpocock/skills` แล้ว
+## 5. เครื่อง dev
+Flutter 3.47 · Android Studio/SDK · Docker · Supabase CLI 3.x · Node 22 · gh
 ```bash
-cd ~/Job/Profender/Project/Test && claude
+supabase start && bash scripts/dev/run_local.sh
 ```
-แล้ววาง prompt แรกจาก `docs/setup/KICKOFF_PROMPTS.md`
+แล้ววาง prompt จาก `docs/setup/KICKOFF_PROMPTS.md`

@@ -1,52 +1,39 @@
 # SYSTEM DESIGN — Profender Room Booking (ร่างตั้งต้น · งาน ROOM-2 จะเติมจาก docs/spec/)
 
-> ส่วน "ตัดสินแล้ว" สืบทอดจาก Profender Modern SCADA · ส่วน "รอเติม" ทำในงาน ROOM-2 จาก `docs/spec/` แล้วส่งให้เจ้าของโปรเจคอนุมัติ
+> ส่วน "ตัดสินแล้ว" มาจาก ADR 0001 · ส่วน "รอเติม" ทำในงาน ROOM-2 จาก `docs/spec/` แล้วส่งให้เจ้าของโปรเจคอนุมัติ
 
 ## 1. ภาพรวม (รอเติม)
-- ปัญหาที่แก้ · ผู้ใช้แต่ละบทบาท · ปริมาณงาน (รายการ/วัน, ไฟล์แนบ/รายการ, ผู้ใช้พร้อมกัน) · KPI ที่วัดความสำเร็จ
+- ปัญหาที่แก้ (จองซ้อน, หาห้องว่างยาก, ห้องถูกจองแต่ไม่มีคนใช้) · บทบาท (พนักงาน, ผู้ดูแลห้อง, ผู้ดูแลระบบ)
+- ปริมาณ: จำนวนห้อง, การจอง/วัน, ผู้ใช้พร้อมกัน · KPI (อัตราใช้ห้อง, no-show)
 
-## 2. สถาปัตยกรรม (ตัดสินแล้ว)
+## 2. สถาปัตยกรรม (ตัดสินแล้ว · ADR 0001)
 ```
-ผู้ใช้ (เว็บ/มือถือ) ─▶ Traefik ─▶ web (nginx static)  /roombooking/
-                                  └▶ api (Fastify)       /roombooking/api
-api ─▶ PostgreSQL 18 (.176 · DB roombooking) · Redis (cache/คิว) · ที่เก็บไฟล์แนบ (ดู ADR 0002)
-worker ◀─ คิวใน Redis/PostgreSQL ─ งานเบื้องหลัง (แจ้งเตือน, PDF, ย่อรูป)
+แอป Android (Flutter) ──HTTPS──▶ Supabase project (staging | production แยกกัน)
+  publishable key + JWT ผู้ใช้        ├─ Auth (GoTrue)
+  config จาก --dart-define            ├─ PostgREST ─▶ Postgres (RLS บังคับสิทธิ์ทุกตาราง)
+                                      └─ Edge Functions / pg_cron (เมื่อจำเป็น: แจ้งเตือน, ปล่อยห้อง no-show)
 ```
-- **stateless app**: api/worker ไม่เก็บ state ในเครื่อง → เพิ่ม instance ได้โดยไม่แก้โค้ด
-- **สัญญาเดียว**: type และ validation (zod) อยู่ `packages/shared` ใช้ทั้ง web, api, worker
-- **ไฟล์แนบ**: object storage ผ่าน S3 API เสมอ (MinIO on-prem → S3 บน cloud) · DB เก็บแค่ metadata + checksum · อัปโหลด/ดาวน์โหลดด้วย presigned URL
+- **สิทธิ์อยู่ที่ DB**: ทุกตารางเปิด RLS · แอปไม่มีกุญแจสิทธิ์สูง
+- **กติกาจองอยู่ที่ DB**: กันเวลาซ้อนด้วย exclusion constraint (`btree_gist`, `tstzrange`) · สถานะการจองเปลี่ยนผ่าน function ที่ตรวจเงื่อนไข
+- **แอป**: Riverpod (state) · go_router (route + redirect ตาม auth) · supabase_flutter
 
-## 3. ขยายตามขั้น (หลักเดียวกับ SCADA)
-| ขั้น | เมื่อไร | รูปแบบ |
-|---|---|---|
-| 1 | เริ่มต้น | server เดียว · Docker Compose · PostgreSQL ร่วม cluster กับ SCADA บน .176 (คนละ database/role) |
-| 2 | ผู้ใช้หลักร้อยพร้อมกัน / ต้องมีระบบสำรอง | api หลาย instance + load balancer · PostgreSQL replica · object storage แยก |
-| 3 | หลายบริษัท/ทั่วประเทศ | Kubernetes · ฐานข้อมูลเฉพาะทาง · CDN ภายในสำหรับไฟล์ |
-หลักที่ใส่ตั้งแต่ขั้น 1: idempotency key ทุกคำสั่งเขียน · pagination ฝั่ง server · index ตาม query จริง · งานหนักเข้าคิว · ทดสอบโหลด 5 เท่าก่อนใช้จริง
-
-## 4. Server และการ deploy (ตัดสินแล้ว)
-| เครื่อง | ใช้ทำอะไรในโปรเจคนี้ |
-|---|---|
-| .177 ops | GitHub Actions runner (ระดับ organization ใช้ร่วมกับ SCADA) · staging `/opt/staging-roombooking` พอร์ต 8089 · Grafana |
-| .176 scada | PostgreSQL 18: database `roombooking` + role `roombooking_admin/_api/_worker/_report` · backup ผ่าน pgBackRest ชุดเดียวกับ cluster |
-| production | VM ตาม ADR 0002 (ถ้ามีผู้ใช้ภายนอก ต้องอยู่ DMZ หรือแยก) |
-- merge → build image tag = SHA → staging + migration + e2e อัตโนมัติ · production = tag `vX.Y.Z` ด้วยมือ
-- ⚠ RAM ของ .177 ตอนนี้ 4.8 GB รับ 2 โปรเจคไม่ไหว ต้องขยายก่อนเปิด staging ของโปรเจคนี้
-
-### เป้าหมาย deploy (ADR 0003 · เปลี่ยนด้วย env อย่างเดียว)
-| | on-prem (ตอนนี้) | VPS | AWS (Bangkok ap-southeast-7) |
+## 3. สภาพแวดล้อม
+| | Supabase | แอป | ใครเปลี่ยน schema |
 |---|---|---|---|
-| แอป | Compose บน server ในโรงงาน | `ops/production/compose.prod.yml` | ECS Fargate หรือ EC2 + compose |
-| DB | PostgreSQL 18 (.176) | managed PostgreSQL | RDS for PostgreSQL (Multi-AZ) |
-| ไฟล์ | MinIO | object storage S3 API | S3 |
-| auth | Keycloak/IdP บริษัท (OIDC) | เหมือนเดิม | Entra/Cognito/Keycloak (OIDC) |
-| image | build บน .177 | GHCR | GHCR/ECR |
-ขั้นตอนย้าย: `docs/setup/CLOUD_MIGRATION.md`
+| local | `supabase start` (Docker) | `scripts/dev/run_local.sh` | `supabase db reset` |
+| CI | local stack ใน runner ubuntu-latest | web build สำหรับ Playwright + APK debug | `supabase db reset` |
+| staging | project แยก | APK จาก `main.yml` (artifact) | คนรัน `supabase db push` |
+| production | project แยก (region ตาม ADR 0002) | AAB/APK จาก `release.yml` | คนรัน `supabase db push` ก่อน tag |
+
+## 4. CI/CD (ตัดสินแล้ว)
+- PR: risk (+MANUAL_MERGE) · guard + gitleaks · flutter format/analyze/test/build APK · migration บนฐานว่าง + db lint + pgTAP · Playwright API + web
+- main: ชุดเดียวกัน + APK staging · release (tag `vX.Y.Z` บน main): ชุดเดียวกัน + AAB/APK เซ็นแล้ว → GitHub Release
+- ไม่มี deploy อัตโนมัติไป Supabase · Play Store อัปโหลดด้วยมือ (หรือเพิ่มภายหลังด้วย ADR)
 
 ## 5. ข้อมูลและความปลอดภัย (ตัดสินแล้ว + รอเติม)
-- PDPA: ข้อมูลส่วนบุคคลแยกตาราง/คอลัมน์ชัด · เข้ารหัสระหว่างทาง (TLS) · สิทธิ์ตามบทบาท · audit log ทุกการดู/แก้/ส่งออก · กำหนดระยะเก็บและการลบ (รอเติม)
-- ไฟล์แนบ: ตรวจชนิดจากเนื้อไฟล์ ไม่ใช่นามสกุล · จำกัดขนาด · ลบ EXIF ตำแหน่ง GPS ถ้าไม่ต้องใช้ · สแกนไวรัส (รอเติม)
-- auth: ดู ADR 0002 · ห้ามเปิดฟีเจอร์เขียนบน production ก่อนมี auth
+- PDPA: ข้อมูลส่วนบุคคล = ชื่อ, อีเมล, แผนก, ประวัติการจอง · ผู้ใช้เห็นเฉพาะของตัวเอง + ข้อมูลห้องที่จำเป็น (เช่น "ไม่ว่าง" โดยไม่บอกผู้จองถ้าไม่จำเป็น) · ระยะเก็บประวัติ (รอเติม)
+- region/DPA ของ Supabase: ADR 0002 ข้อ 1 ต้องตัดสินก่อน production
+- auth: ADR 0002 ข้อ 2 · ห้ามเปิด signup สาธารณะบน production ถ้าใช้อีเมล+รหัสผ่าน (จำกัดโดเมนบริษัทหรือเชิญเท่านั้น)
 
 ## 6. โดเมน (รอเติมจาก docs/spec/)
-- entity หลัก + ER · state machine ของงาน (สถานะ, ใครเปลี่ยนได้, เงื่อนไข) · กติกาเงิน · การแจ้งเตือน · รายงาน
+- entity ตั้งต้นที่คาด: `profiles` (มีแล้ว), `rooms`, `bookings` (room_id, user_id, during tstzrange, status) · ER (mermaid) · state machine ของการจอง · แจ้งเตือน · รายงานการใช้ห้อง
